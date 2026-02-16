@@ -8,8 +8,10 @@ frontend:
     build:
       commands:
         - pnpm run build
+        - mkdir -p output/calculator
+        - cp -r dist/* output/calculator/
   artifacts:
-    baseDirectory: dist
+    baseDirectory: output
     files:
       - "**/*"
   cache:
