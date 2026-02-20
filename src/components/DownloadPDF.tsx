@@ -1,9 +1,12 @@
+import { useState, useCallback } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, addMonths, startOfMonth } from 'date-fns'
 import type { BusinessInputs } from '../types'
 import type { MonthForecast } from '../types'
 import { getMerchandisingEvents, getCountryDisplayName } from '../data/merchandisingEvents'
+import { LeadCaptureModal } from './LeadCaptureModal'
+import { submitForecastLead } from '../services/api'
 
 interface DownloadPDFProps {
   inputs: BusinessInputs
@@ -56,6 +59,10 @@ export function DownloadPDF({
   chartRef,
   selectedEventIds,
 }: DownloadPDFProps) {
+  const [showModal, setShowModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
   const handleDownload = async () => {
     const doc = new jsPDF('p', 'mm', 'a4')
     const margin = 14
@@ -271,19 +278,60 @@ export function DownloadPDF({
     doc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
   }
 
+  const handleButtonClick = () => {
+    if (sessionStorage.getItem('forecast_lead_captured')) {
+      handleDownload()
+      return
+    }
+    setShowModal(true)
+  }
+
+  const handleLeadSubmit = useCallback(async (formData: { name: string; email: string; phone: string; company: string }) => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      const totalRevenue = forecast.reduce((s, f) => s + f.revenue, 0)
+      const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
+      const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
+
+      await submitForecastLead({
+        ...formData,
+        brand_name: brandName || undefined,
+        forecast_summary: forecastSummary,
+      })
+      sessionStorage.setItem('forecast_lead_captured', 'true')
+      setShowModal(false)
+      handleDownload()
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [brandName, forecast, inputs.aov])
+
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-2 text-lg font-semibold text-slate-800">Export report</h2>
-      <p className="mb-4 text-sm text-slate-500">
-        Download a full PDF: business inputs, merchandising events, 12-month chart, and P&L table.
-      </p>
-      <button
-        type="button"
-        onClick={handleDownload}
-        className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        Download PDF
-      </button>
-    </section>
+    <>
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-semibold text-slate-800">Export report</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Download a full PDF: business inputs, merchandising events, 12-month chart, and P&L table.
+        </p>
+        <button
+          type="button"
+          onClick={handleButtonClick}
+          className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Download PDF
+        </button>
+      </section>
+
+      <LeadCaptureModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleLeadSubmit}
+        isSubmitting={isSubmitting}
+        error={submitError}
+      />
+    </>
   )
 }
