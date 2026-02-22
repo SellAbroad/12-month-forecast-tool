@@ -34,9 +34,9 @@ export function MarginCalculator({
       <h2 className="mb-4 text-lg font-semibold text-slate-800">
         Business inputs & margin
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-600">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-start">
+        <div className="flex flex-col">
+          <label className="mb-1 block h-10 text-sm font-medium text-slate-600">
             AOV (Average Order Value) $
           </label>
           <input
@@ -49,8 +49,8 @@ export function MarginCalculator({
             placeholder="e.g. 49.99"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-600">
+        <div className="flex flex-col">
+          <label className="mb-1 block h-10 text-sm font-medium text-slate-600">
             COGS (Cost of Goods Sold) $
           </label>
           <input
@@ -63,8 +63,8 @@ export function MarginCalculator({
             placeholder="e.g. 15"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-600">
+        <div className="flex flex-col">
+          <label className="mb-1 block h-10 text-sm font-medium text-slate-600">
             Product weight (KG)
           </label>
           <input
@@ -80,8 +80,8 @@ export function MarginCalculator({
             Shipping: tiered from ~$10.84/kg, −15% at 2kg, 3kg…
           </p>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-600">
+        <div className="flex flex-col">
+          <label className="mb-1 block h-10 text-sm font-medium text-slate-600">
             Marketing budget (first month) $
           </label>
           <input

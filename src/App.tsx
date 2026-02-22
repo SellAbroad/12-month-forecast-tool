@@ -146,25 +146,42 @@ function App() {
   }
 
   // —— Embedded (iframe): step-by-step wizard, no lead form ——
-  const totalSteps = 5
+  const totalSteps = 6
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
-      <div className="mx-auto max-w-2xl">
-        <p className="mb-4 text-sm font-medium text-slate-500">
-          Step {embedStep} of {totalSteps}
-        </p>
+    <div className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-4xl">
 
+        {/* Step 1: Brand name */}
         {embedStep === 1 && (
-          <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">Business inputs</h2>
-            <label className="mb-2 block text-sm font-medium text-slate-600">Brand name</label>
-            <input
-              type="text"
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              placeholder="e.g. Acme Co"
-              className="mb-6 w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+          <div className="flex flex-col items-center justify-center py-12">
+            <h1 className="mb-2 text-2xl font-bold text-slate-800">
+              SellAbroad 12‑Month Forecast
+            </h1>
+            <p className="mb-8 text-sm text-slate-500">
+              Get a data-driven sales forecast and P&L for your global expansion.
+            </p>
+            <div className="w-full max-w-sm">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                What is your brand name?
+              </label>
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="e.g. Acme Co"
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-center text-lg text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Business inputs & margin */}
+        {embedStep === 2 && (
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-800">Business inputs & margin</h2>
+            <p className="mb-6 text-sm text-slate-500">
+              Enter your product economics to generate the forecast.
+            </p>
             <MarginCalculator
               aov={aov}
               cogs={cogs}
@@ -175,51 +192,68 @@ function App() {
               onWeightChange={setProductWeightKg}
               onFirstMonthMarketingBudgetChange={setFirstMonthMarketingBudget}
             />
-          </>
+          </div>
         )}
 
-        {embedStep === 2 && (
-          <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">Merchandising calendar</h2>
+        {/* Step 3: Merchandising calendar */}
+        {embedStep === 3 && (
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-800">Merchandising calendar</h2>
+            <p className="mb-6 text-sm text-slate-500">
+              Select the events to include in your forecast.
+            </p>
             <MerchandisingCalendar
               forecastStartDate={forecastStartDate}
               selectedEventIds={selectedEventIds}
               onToggleEvent={handleToggleEvent}
             />
-          </>
+          </div>
         )}
 
-        {embedStep === 3 && (
-          <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">12‑Month forecast chart</h2>
-            <label className="mb-2 block text-sm font-medium text-slate-600">Forecast start</label>
-            <input
-              type="month"
-              value={format(forecastStartDate, 'yyyy-MM')}
-              min={format(minStart, 'yyyy-MM')}
-              max={format(maxStart, 'yyyy-MM')}
-              onChange={(e) => {
-                const d = new Date(e.target.value + '-01')
-                if (!isNaN(d.getTime())) setForecastStartDate(startOfMonth(d))
-              }}
-              className="mb-4 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <ForecastChart forecast={forecast} chartRef={chartRef} />
-          </>
-        )}
-
+        {/* Step 4: Forecast chart */}
         {embedStep === 4 && (
-          <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">P&L table</h2>
-            <PLTable forecast={forecast} />
-          </>
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-800">12‑Month sales forecast</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              Your projected revenue, costs, and profit over the next 12 months.
+            </p>
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                Forecast start:
+                <input
+                  type="month"
+                  value={format(forecastStartDate, 'yyyy-MM')}
+                  min={format(minStart, 'yyyy-MM')}
+                  max={format(maxStart, 'yyyy-MM')}
+                  onChange={(e) => {
+                    const d = new Date(e.target.value + '-01')
+                    if (!isNaN(d.getTime())) setForecastStartDate(startOfMonth(d))
+                  }}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </label>
+            </div>
+            <ForecastChart forecast={forecast} chartRef={chartRef} />
+          </div>
         )}
 
+        {/* Step 5: P&L table */}
         {embedStep === 5 && (
-          <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">Download your report</h2>
-            <p className="mb-4 text-sm text-slate-500">
-              Download the full PDF with inputs, events, chart, and P&L table.
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-800">P&L breakdown</h2>
+            <p className="mb-6 text-sm text-slate-500">
+              Month-by-month revenue, costs, and profit details.
+            </p>
+            <PLTable forecast={forecast} />
+          </div>
+        )}
+
+        {/* Step 6: Export */}
+        {embedStep === 6 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <h2 className="mb-2 text-xl font-bold text-slate-800">Your forecast is ready</h2>
+            <p className="mb-8 text-sm text-slate-500">
+              Download the full PDF report with all inputs, events, chart, and P&L table.
             </p>
             <DownloadPDF
               inputs={inputs}
@@ -230,15 +264,16 @@ function App() {
               selectedEventIds={selectedEventIds}
               isEmbedded={true}
             />
-          </>
+          </div>
         )}
 
-        <div className="mt-8 flex items-center gap-3">
+        {/* Navigation */}
+        <div className="mt-8 flex items-center justify-end gap-3">
           {embedStep > 1 && (
             <button
               type="button"
               onClick={() => setEmbedStep((s) => s - 1)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Back
             </button>
@@ -247,7 +282,7 @@ function App() {
             <button
               type="button"
               onClick={() => setEmbedStep((s) => s + 1)}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Next
             </button>
