@@ -68,14 +68,19 @@ function App() {
   if (!isEmbedded) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <header className="border-b border-slate-200 bg-white px-4 py-6 shadow-sm">
-          <div className="mx-auto max-w-6xl">
-            <h1 className="text-xl font-bold text-slate-800">
+        <header className="border-b border-slate-200 bg-white shadow-sm">
+          <div className="mx-auto max-w-6xl px-4 py-6">
+            <h1 className="text-center text-xl font-bold text-slate-800">
               SellAbroad · 12‑Month Forecast Tool
             </h1>
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="text-center text-sm text-slate-500">
               Data-driven sales forecast and P&L for your global expansion
             </p>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-6xl space-y-6 p-4 pb-12">
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <label className="flex flex-col gap-2 max-w-xs">
               <span className="text-sm font-medium text-slate-600">Brand name</span>
               <input
@@ -86,10 +91,8 @@ function App() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </label>
-          </div>
-        </header>
+          </section>
 
-        <main className="mx-auto max-w-6xl space-y-6 p-4 pb-12">
           <MarginCalculator
             aov={aov}
             cogs={cogs}
