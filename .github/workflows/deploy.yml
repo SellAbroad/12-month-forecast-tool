@@ -1,0 +1,66 @@
+name: Deploy to Amplify
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+        env:
+          VITE_ORMULUS_API_URL: ${{ secrets.VITE_ORMULUS_API_URL }}
+
+      - name: Prepare deployment (nest under /calculator/)
+        run: |
+          mkdir -p output/calculator
+          cp -r dist/* output/calculator/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Deploy to Amplify
+        run: |
+          cd output
+          zip -r /tmp/deploy.zip .
+
+          DEPLOY=$(aws amplify create-deployment \
+            --app-id d2erccez396qz1 \
+            --branch-name main \
+            --output json)
+
+          JOB_ID=$(echo "$DEPLOY" | jq -r '.jobId')
+          UPLOAD_URL=$(echo "$DEPLOY" | jq -r '.zipUploadUrl')
+
+          curl -T /tmp/deploy.zip "$UPLOAD_URL" --fail --silent
+
+          aws amplify start-deployment \
+            --app-id d2erccez396qz1 \
+            --branch-name main \
+            --job-id "$JOB_ID"
+
+          echo "Deployed job $JOB_ID"

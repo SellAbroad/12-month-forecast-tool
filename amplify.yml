@@ -1,0 +1,27 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - corepack enable
+        - pnpm install --frozen-lockfile
+    build:
+      commands:
+        - pnpm run build
+        - mkdir -p output/calculator
+        - cp -r dist/* output/calculator/
+  artifacts:
+    baseDirectory: output
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - node_modules/**/*
+      - ~/.pnpm-store/**/*
+  customHeaders:
+    - pattern: "**/*"
+      headers:
+        - key: X-Frame-Options
+          value: ALLOWALL
+        - key: X-Content-Type-Options
+          value: nosniff

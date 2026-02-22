@@ -10,8 +10,6 @@ import type { Chart as ChartJS } from 'chart.js'
 import { getShippingCostUSD } from './data/shippingRates'
 import { getMerchandisingEvents } from './data/merchandisingEvents'
 
-const LEADS_API_URL = import.meta.env.VITE_LEADS_API_URL ?? ''
-
 function App() {
   const [isEmbedded, setIsEmbedded] = useState(false)
   const [embedStep, setEmbedStep] = useState(1)
@@ -25,14 +23,6 @@ function App() {
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const reportRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ChartJS<'line'> | null>(null)
-
-  // Lead capture (normal page only) – gates PDF download
-  const [leadName, setLeadName] = useState('')
-  const [leadEmail, setLeadEmail] = useState('')
-  const [leadPhone, setLeadPhone] = useState('')
-  const [leadSubmitted, setLeadSubmitted] = useState(false)
-  const [leadSubmitting, setLeadSubmitting] = useState(false)
-  const [leadError, setLeadError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsEmbedded(window.self !== window.top)
@@ -67,39 +57,7 @@ function App() {
   const minStart = startOfMonth(new Date())
   const maxStart = addMonths(minStart, 11)
 
-  const handleLeadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLeadError(null)
-    if (!leadName.trim() || !leadEmail.trim() || !leadPhone.trim() || !brandName.trim()) {
-      setLeadError('Please fill in Name, Email, Phone, and Brand name.')
-      return
-    }
-    if (!LEADS_API_URL) {
-      setLeadError('Lead API is not configured (VITE_LEADS_API_URL). Engineer: add backend and set env.')
-      return
-    }
-    setLeadSubmitting(true)
-    try {
-      const res = await fetch(LEADS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: leadName.trim(),
-          email: leadEmail.trim(),
-          phone: leadPhone.trim(),
-          brandName: brandName.trim(),
-        }),
-      })
-      if (!res.ok) throw new Error(res.statusText || 'Request failed')
-      setLeadSubmitted(true)
-    } catch (err) {
-      setLeadError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
-    } finally {
-      setLeadSubmitting(false)
-    }
-  }
-
-  // —— Normal page (not in iframe): same layout + lead gate before download ——
+  // —— Normal page (not in iframe): same layout + modal lead gate on download ——
   if (!isEmbedded) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -173,82 +131,15 @@ function App() {
             </div>
           </section>
 
-          {/* Lead capture: required before download on normal page */}
-          {!leadSubmitted ? (
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-2 text-lg font-semibold text-slate-800">Get your PDF report</h2>
-              <p className="mb-4 text-sm text-slate-500">
-                Enter your details to download the forecast PDF. Our sales team may reach out.
-              </p>
-              <form onSubmit={handleLeadSubmit} className="max-w-md space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-600">Name</label>
-                  <input
-                    type="text"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                    placeholder="Your name"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-600">Email</label>
-                  <input
-                    type="email"
-                    value={leadEmail}
-                    onChange={(e) => setLeadEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-600">Phone</label>
-                  <input
-                    type="tel"
-                    value={leadPhone}
-                    onChange={(e) => setLeadPhone(e.target.value)}
-                    placeholder="+1 234 567 8900"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-600">Brand name</label>
-                  <input
-                    type="text"
-                    value={brandName}
-                    onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="e.g. Acme Co"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                {leadError && (
-                  <p className="text-sm text-red-600">{leadError}</p>
-                )}
-                <button
-                  type="submit"
-                  disabled={leadSubmitting}
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                >
-                  {leadSubmitting ? 'Submitting…' : 'Submit & unlock PDF download'}
-                </button>
-              </form>
-            </section>
-          ) : null}
-
-          {leadSubmitted && (
-            <DownloadPDF
-              inputs={inputs}
-              forecast={forecast}
-              brandName={brandName}
-              forecastStartDate={forecastStartDate}
-              chartRef={chartRef}
-              selectedEventIds={selectedEventIds}
-            />
-          )}
+          <DownloadPDF
+            inputs={inputs}
+            forecast={forecast}
+            brandName={brandName}
+            forecastStartDate={forecastStartDate}
+            chartRef={chartRef}
+            selectedEventIds={selectedEventIds}
+            isEmbedded={false}
+          />
         </main>
       </div>
     )
@@ -337,6 +228,7 @@ function App() {
               forecastStartDate={forecastStartDate}
               chartRef={chartRef}
               selectedEventIds={selectedEventIds}
+              isEmbedded={true}
             />
           </>
         )}
