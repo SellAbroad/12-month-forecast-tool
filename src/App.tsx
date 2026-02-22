@@ -10,17 +10,19 @@ import type { Chart as ChartJS } from 'chart.js'
 import { getShippingCostUSD } from './data/shippingRates'
 import { getMerchandisingEvents } from './data/merchandisingEvents'
 
-function detectIframe(): boolean {
+function detectEmbed(): boolean {
+  // Explicit ?embed=true param (most reliable for cross-origin)
+  if (new URLSearchParams(window.location.search).get('embed') === 'true') return true
+  // Auto-detect iframe
   try {
     return window.self !== window.top
   } catch {
-    // Cross-origin iframe throws — if it throws, we're definitely in an iframe
     return true
   }
 }
 
 function App() {
-  const [isEmbedded] = useState(detectIframe)
+  const [isEmbedded] = useState(detectEmbed)
   const [embedStep, setEmbedStep] = useState(1)
 
   const [brandName, setBrandName] = useState('')
@@ -66,23 +68,25 @@ function App() {
   if (!isEmbedded) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <header className="border-b border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <h1 className="text-xl font-bold text-slate-800">
-            SellAbroad · 12‑Month Forecast Tool
-          </h1>
-          <p className="mb-4 text-sm text-slate-500">
-            Data-driven sales forecast and P&L for your global expansion
-          </p>
-          <label className="flex flex-col gap-2 max-w-xs">
-            <span className="text-sm font-medium text-slate-600">Brand name</span>
-            <input
-              type="text"
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              placeholder="e.g. Acme Co"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </label>
+        <header className="border-b border-slate-200 bg-white px-4 py-6 shadow-sm">
+          <div className="mx-auto max-w-6xl">
+            <h1 className="text-xl font-bold text-slate-800">
+              SellAbroad · 12‑Month Forecast Tool
+            </h1>
+            <p className="mb-4 text-sm text-slate-500">
+              Data-driven sales forecast and P&L for your global expansion
+            </p>
+            <label className="flex flex-col gap-2 max-w-xs">
+              <span className="text-sm font-medium text-slate-600">Brand name</span>
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="e.g. Acme Co"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </label>
+          </div>
         </header>
 
         <main className="mx-auto max-w-6xl space-y-6 p-4 pb-12">
@@ -151,42 +155,28 @@ function App() {
   }
 
   // —— Embedded (iframe): step-by-step wizard, no lead form ——
-  const totalSteps = 6
+  const totalSteps = 5
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-4xl">
 
-        {/* Step 1: Brand name */}
+        {/* Step 1: Brand name + Business inputs (consolidated) */}
         {embedStep === 1 && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <h1 className="mb-2 text-2xl font-bold text-slate-800">
-              SellAbroad 12‑Month Forecast
-            </h1>
-            <p className="mb-8 text-sm text-slate-500">
-              Get a data-driven sales forecast and P&L for your global expansion.
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-800">Business inputs</h2>
+            <p className="mb-6 text-sm text-slate-500">
+              Enter your brand and product economics to generate the forecast.
             </p>
-            <div className="w-full max-w-sm">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                What is your brand name?
-              </label>
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-slate-600">Brand name</label>
               <input
                 type="text"
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder="e.g. Acme Co"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-center text-lg text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-          </div>
-        )}
-
-        {/* Step 2: Business inputs & margin */}
-        {embedStep === 2 && (
-          <div>
-            <h2 className="mb-1 text-xl font-bold text-slate-800">Business inputs & margin</h2>
-            <p className="mb-6 text-sm text-slate-500">
-              Enter your product economics to generate the forecast.
-            </p>
             <MarginCalculator
               aov={aov}
               cogs={cogs}
@@ -200,8 +190,8 @@ function App() {
           </div>
         )}
 
-        {/* Step 3: Merchandising calendar */}
-        {embedStep === 3 && (
+        {/* Step 2: Merchandising calendar */}
+        {embedStep === 2 && (
           <div>
             <h2 className="mb-1 text-xl font-bold text-slate-800">Merchandising calendar</h2>
             <p className="mb-6 text-sm text-slate-500">
@@ -215,8 +205,8 @@ function App() {
           </div>
         )}
 
-        {/* Step 4: Forecast chart */}
-        {embedStep === 4 && (
+        {/* Step 3: Forecast chart */}
+        {embedStep === 3 && (
           <div>
             <h2 className="mb-1 text-xl font-bold text-slate-800">12‑Month sales forecast</h2>
             <p className="mb-4 text-sm text-slate-500">
@@ -242,8 +232,8 @@ function App() {
           </div>
         )}
 
-        {/* Step 5: P&L table */}
-        {embedStep === 5 && (
+        {/* Step 4: P&L table */}
+        {embedStep === 4 && (
           <div>
             <h2 className="mb-1 text-xl font-bold text-slate-800">P&L breakdown</h2>
             <p className="mb-6 text-sm text-slate-500">
@@ -253,8 +243,8 @@ function App() {
           </div>
         )}
 
-        {/* Step 6: Export */}
-        {embedStep === 6 && (
+        {/* Step 5: Export */}
+        {embedStep === 5 && (
           <div className="flex flex-col items-center justify-center py-12">
             <h2 className="mb-2 text-xl font-bold text-slate-800">Your forecast is ready</h2>
             <p className="mb-8 text-sm text-slate-500">
