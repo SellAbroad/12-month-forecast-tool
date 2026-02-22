@@ -10,8 +10,17 @@ import type { Chart as ChartJS } from 'chart.js'
 import { getShippingCostUSD } from './data/shippingRates'
 import { getMerchandisingEvents } from './data/merchandisingEvents'
 
+function detectIframe(): boolean {
+  try {
+    return window.self !== window.top
+  } catch {
+    // Cross-origin iframe throws — if it throws, we're definitely in an iframe
+    return true
+  }
+}
+
 function App() {
-  const [isEmbedded, setIsEmbedded] = useState(false)
+  const [isEmbedded] = useState(detectIframe)
   const [embedStep, setEmbedStep] = useState(1)
 
   const [brandName, setBrandName] = useState('')
@@ -23,10 +32,6 @@ function App() {
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const reportRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ChartJS<'line'> | null>(null)
-
-  useEffect(() => {
-    setIsEmbedded(window.self !== window.top)
-  }, [])
 
   // When forecast start changes, default to all events selected
   useEffect(() => {
