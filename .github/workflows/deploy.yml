@@ -67,28 +67,7 @@ jobs:
 
       - name: Invalidate CloudFront cache
         run: |
-          # Get the CloudFront distribution linked to this Amplify app
-          DOMAIN=$(aws amplify get-app --app-id d2erccez396qz1 --query 'app.defaultDomain' --output text)
-          echo "Amplify domain: $DOMAIN"
-
-          # Find the CloudFront distribution for this domain
-          DIST_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?Origins.Items[?contains(DomainName, 'd2erccez396qz1')]].Id" \
-            --output text 2>/dev/null || true)
-
-          if [ -z "$DIST_ID" ] || [ "$DIST_ID" = "None" ]; then
-            # Fallback: try matching by Amplify domain alias
-            DIST_ID=$(aws cloudfront list-distributions \
-              --query "DistributionList.Items[?Aliases.Items[?contains(@, 'sellabroad')]].Id" \
-              --output text 2>/dev/null || true)
-          fi
-
-          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
-            echo "Invalidating CloudFront distribution: $DIST_ID"
-            aws cloudfront create-invalidation \
-              --distribution-id "$DIST_ID" \
-              --paths "/calculator/*" "/calculator/index.html"
-            echo "Cache invalidation submitted"
-          else
-            echo "Could not find CloudFront distribution - skipping invalidation"
-          fi
+          aws cloudfront create-invalidation \
+            --distribution-id E2GOM3NRA6QNOM \
+            --paths "/calculator/*"
+          echo "CloudFront cache invalidation submitted"
