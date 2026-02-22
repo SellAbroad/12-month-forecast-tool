@@ -15,6 +15,7 @@ interface DownloadPDFProps {
   forecastStartDate: Date
   chartRef: React.RefObject<{ toBase64Image?: () => string } | null>
   selectedEventIds: Set<string>
+  isEmbedded?: boolean
 }
 
 function sanitizeFilename(name: string): string {
@@ -58,6 +59,7 @@ export function DownloadPDF({
   forecastStartDate,
   chartRef,
   selectedEventIds,
+  isEmbedded = false,
 }: DownloadPDFProps) {
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -279,7 +281,7 @@ export function DownloadPDF({
   }
 
   const handleButtonClick = () => {
-    if (sessionStorage.getItem('forecast_lead_captured')) {
+    if (isEmbedded || sessionStorage.getItem('forecast_lead_captured')) {
       handleDownload()
       return
     }

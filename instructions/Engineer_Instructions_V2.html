@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engineer instructions V2 – 12‑Month Forecast (iframe + lead capture)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; color: #1e293b; line-height: 1.6; }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: #0f172a; }
+    h2 { font-size: 1.15rem; margin-top: 24px; margin-bottom: 8px; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+    h3 { font-size: 1rem; margin-top: 16px; margin-bottom: 4px; color: #475569; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 12px; padding-left: 24px; }
+    li { margin-bottom: 4px; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 0.85rem; }
+    .note { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin: 16px 0; }
+    .todo { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0; }
+    @media print { body { padding: 16px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <p class="no-print" style="color:#64748b; font-size: 0.875rem;">Open this file in a browser, then <strong>Print → Save as PDF</strong> to get a PDF for handoff. You can also upload the PDF to PandaDoc for sharing.</p>
+
+  <h1>Engineer instructions V2: 12‑Month Forecast Tool (iframe + lead capture)</h1>
+  <p><strong>Repo:</strong> SellAbroad/12-month-forecast-tool (or current deployment path).<br />
+  <strong>Deployed at:</strong> App.sellabroad.com/calculator (or equivalent).</p>
+
+  <h2>1. What was implemented (frontend)</h2>
+  <ul>
+    <li><strong>Embedded vs normal:</strong> The app detects if it’s running inside an iframe (<code>window.self !== window.top</code>).</li>
+    <li><strong>Normal page (direct visit):</strong> Same layout as before. Before the user can download the PDF, they must fill a lead form: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>Brand name</strong>. On submit, the app sends <code>POST</code> to <code>VITE_LEADS_API_URL</code> with <code>{ name, email, phone, brandName }</code>. Only after a successful response is the “Download PDF” section shown.</li>
+    <li><strong>Iframe (embedded):</strong> Step‑by‑step wizard (5 steps): (1) Business inputs + brand name, (2) Merchandising calendar, (3) Forecast chart, (4) P&L table, (5) Download PDF. No lead form; download works without entering email/phone.</li>
+  </ul>
+
+  <h2>2. What you need to do (backend)</h2>
+  <div class="todo">
+    <strong>Your tasks:</strong>
+    <ul style="margin-bottom:0;">
+      <li>Implement the <strong>lead capture API</strong> that the frontend calls when the user submits the form on the normal page.</li>
+      <li><strong>Save leads to your database</strong> (e.g. table: name, email, phone, brand_name, created_at).</li>
+      <li><strong>Send a Slack notification</strong> to the Sales channel with “New lead” and the lead info (name, email, phone, brand name) so the sales team can follow up.</li>
+    </ul>
+  </div>
+
+  <h3>2.1 API contract (frontend → backend)</h3>
+  <ul>
+    <li><strong>URL:</strong> Set via env <code>VITE_LEADS_API_URL</code> (e.g. <code>https://api.sellabroad.com/api/leads</code> or your backend base + path).</li>
+    <li><strong>Method:</strong> <code>POST</code></li>
+    <li><strong>Headers:</strong> <code>Content-Type: application/json</code></li>
+    <li><strong>Body (JSON):</strong> <code>{ "name": "...", "email": "...", "phone": "...", "brandName": "..." }</code></li>
+    <li><strong>Success:</strong> Return <code>2xx</code> (e.g. 200 or 201). Frontend then shows the Download PDF section.</li>
+    <li><strong>Error:</strong> Return <code>4xx</code> or <code>5xx</code>. Frontend shows the error message to the user.</li>
+  </ul>
+
+  <h3>2.2 Backend implementation outline</h3>
+  <ol>
+    <li>Validate required fields (name, email, phone, brandName) and optionally email format.</li>
+    <li>Insert a row into your leads table (or equivalent).</li>
+    <li>Call Slack API (e.g. <code>chat.postMessage</code>) to post to the Sales channel: title “New lead” and body with name, email, phone, brand name.</li>
+    <li>Return 200/201 on success; 400/500 with a message on failure.</li>
+  </ol>
+
+  <h2>3. Environment variable</h2>
+  <p>In the project root there is <code>.env.example</code>. For production (or staging), set:</p>
+  <pre>VITE_LEADS_API_URL=https://your-api.example.com/api/leads</pre>
+  <p>Build the app after setting this so the client sends requests to your endpoint. If <code>VITE_LEADS_API_URL</code> is empty, the form will show a message that the lead API is not configured.</p>
+
+  <h2>4. How to test</h2>
+  <ul>
+    <li><strong>Normal page:</strong> Open the app URL directly (not in an iframe). You should see the full page; scroll to the “Get your PDF report” section. Fill Name, Email, Phone, Brand name and submit. Until your backend is live, use a stub or mock URL for <code>VITE_LEADS_API_URL</code> to confirm the frontend shows success and then the Download PDF block.</li>
+    <li><strong>Iframe:</strong> Embed the same app URL in an iframe (e.g. on a test page). You should see the 5‑step wizard; step 5 is “Download your report” with no lead form. Download should work without entering email/phone.</li>
+  </ul>
+
+  <h2>5. Double‑check list</h2>
+  <ul>
+    <li>Normal page: lead form appears before Download PDF; download is only available after successful submit.</li>
+    <li>Iframe: no lead form; wizard steps 1–5 with Back/Next; step 5 has Download PDF only.</li>
+    <li>Backend: accepts POST with <code>name</code>, <code>email</code>, <code>phone</code>, <code>brandName</code>; saves to DB; sends “New lead” to Slack Sales channel.</li>
+    <li><code>VITE_LEADS_API_URL</code> is set in the environment used for the build and points to your lead endpoint.</li>
+  </ul>
+
+  <p style="margin-top:24px; color:#64748b; font-size:0.875rem;">End of instructions. For production PDF generation (e.g. branded docs), the product uses PandaDoc/Tectronic per company preference; this document is for engineer handoff only.</p>
+</body>
+</html>
