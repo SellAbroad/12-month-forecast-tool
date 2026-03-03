@@ -30,6 +30,9 @@ function App() {
   const [cogs, setCogs] = useState('')
   const [productWeightKg, setProductWeightKg] = useState('')
   const [firstMonthMarketingBudget, setFirstMonthMarketingBudget] = useState('')
+  const [chargeCustomerShipping, setChargeCustomerShipping] = useState(false)
+  const [bundleForFreeShipping, setBundleForFreeShipping] = useState(false)
+  const [bundleMultiplier, setBundleMultiplier] = useState('')
   const [forecastStartDate, setForecastStartDate] = useState(() => startOfMonth(new Date()))
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const reportRef = useRef<HTMLDivElement>(null)
@@ -52,8 +55,19 @@ function App() {
 
   const weightNum = parseFloat(productWeightKg) || 0
   const shippingPerOrderUSD = getShippingCostUSD(weightNum)
+
+  // Compute effective AOV based on checkbox settings
+  let effectiveAov = parseFloat(aov) || 0
+  if (bundleForFreeShipping) {
+    const mult = parseFloat(bundleMultiplier) || 1
+    if (mult > 0) effectiveAov *= mult
+  }
+  if (chargeCustomerShipping) {
+    effectiveAov += shippingPerOrderUSD
+  }
+
   const inputs = {
-    aov: parseFloat(aov) || 0,
+    aov: effectiveAov,
     cogs: parseFloat(cogs) || 0,
     productWeightKg: weightNum,
     firstMonthMarketingBudget: Math.max(0, parseFloat(firstMonthMarketingBudget) || 0),
@@ -98,10 +112,16 @@ function App() {
             cogs={cogs}
             productWeightKg={productWeightKg}
             firstMonthMarketingBudget={firstMonthMarketingBudget}
+            chargeCustomerShipping={chargeCustomerShipping}
+            bundleForFreeShipping={bundleForFreeShipping}
+            bundleMultiplier={bundleMultiplier}
             onAovChange={setAov}
             onCogsChange={setCogs}
             onWeightChange={setProductWeightKg}
             onFirstMonthMarketingBudgetChange={setFirstMonthMarketingBudget}
+            onChargeCustomerShippingChange={setChargeCustomerShipping}
+            onBundleForFreeShippingChange={setBundleForFreeShipping}
+            onBundleMultiplierChange={setBundleMultiplier}
           />
 
           <MerchandisingCalendar
@@ -185,10 +205,16 @@ function App() {
               cogs={cogs}
               productWeightKg={productWeightKg}
               firstMonthMarketingBudget={firstMonthMarketingBudget}
+              chargeCustomerShipping={chargeCustomerShipping}
+              bundleForFreeShipping={bundleForFreeShipping}
+              bundleMultiplier={bundleMultiplier}
               onAovChange={setAov}
               onCogsChange={setCogs}
               onWeightChange={setProductWeightKg}
               onFirstMonthMarketingBudgetChange={setFirstMonthMarketingBudget}
+              onChargeCustomerShippingChange={setChargeCustomerShipping}
+              onBundleForFreeShippingChange={setBundleForFreeShipping}
+              onBundleMultiplierChange={setBundleMultiplier}
             />
           </div>
         )}
