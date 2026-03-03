@@ -5,10 +5,16 @@ interface MarginCalculatorProps {
   cogs: string
   productWeightKg: string
   firstMonthMarketingBudget: string
+  chargeCustomerShipping: boolean
+  bundleForFreeShipping: boolean
+  bundleMultiplier: string
   onAovChange: (v: string) => void
   onCogsChange: (v: string) => void
   onWeightChange: (v: string) => void
   onFirstMonthMarketingBudgetChange: (v: string) => void
+  onChargeCustomerShippingChange: (v: boolean) => void
+  onBundleForFreeShippingChange: (v: boolean) => void
+  onBundleMultiplierChange: (v: string) => void
 }
 
 export function MarginCalculator({
@@ -16,18 +22,35 @@ export function MarginCalculator({
   cogs,
   productWeightKg,
   firstMonthMarketingBudget,
+  chargeCustomerShipping,
+  bundleForFreeShipping,
+  bundleMultiplier,
   onAovChange,
   onCogsChange,
   onWeightChange,
   onFirstMonthMarketingBudgetChange,
+  onChargeCustomerShippingChange,
+  onBundleForFreeShippingChange,
+  onBundleMultiplierChange,
 }: MarginCalculatorProps) {
   const aovNum = parseFloat(aov) || 0
   const cogsNum = parseFloat(cogs) || 0
   const weightNum = parseFloat(productWeightKg) || 0
   const shippingPerOrderUSD = getShippingCostUSD(weightNum)
   const effectiveRate = getEffectiveRateUSDPerKg(weightNum)
-  const contributionMargin = Math.max(0, aovNum - cogsNum - shippingPerOrderUSD)
-  const marginPercent = aovNum > 0 ? (contributionMargin / aovNum) * 100 : 0
+
+  // Compute effective AOV based on checkbox settings
+  let effectiveAov = aovNum
+  if (bundleForFreeShipping) {
+    const mult = parseFloat(bundleMultiplier) || 1
+    if (mult > 0) effectiveAov *= mult
+  }
+  if (chargeCustomerShipping) {
+    effectiveAov += shippingPerOrderUSD
+  }
+
+  const contributionMargin = Math.max(0, effectiveAov - cogsNum - shippingPerOrderUSD)
+  const marginPercent = effectiveAov > 0 ? (contributionMargin / effectiveAov) * 100 : 0
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -98,6 +121,69 @@ export function MarginCalculator({
           </p>
         </div>
       </div>
+
+      {/* Shipping & bundling options */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label
+          className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition ${
+            chargeCustomerShipping
+              ? 'border-blue-500 bg-blue-50/50'
+              : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={chargeCustomerShipping}
+            onChange={(e) => onChargeCustomerShippingChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div>
+            <span className="text-sm font-medium text-slate-700">Charge customer shipping</span>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Adds ${shippingPerOrderUSD.toFixed(2)} shipping to AOV
+            </p>
+          </div>
+        </label>
+
+        <div
+          className={`rounded-lg border p-3 transition ${
+            bundleForFreeShipping
+              ? 'border-blue-500 bg-blue-50/50'
+              : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+          }`}
+        >
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={bundleForFreeShipping}
+              onChange={(e) => onBundleForFreeShippingChange(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-slate-700">Bundle for Free Shipping threshold</span>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Multiply AOV by number of items per order
+              </p>
+            </div>
+          </label>
+          {bundleForFreeShipping && (
+            <div className="mt-2 ml-7 flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="9"
+                step="1"
+                value={bundleMultiplier}
+                onChange={(e) => onBundleMultiplierChange(e.target.value)}
+                className="w-16 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="2"
+              />
+              <span className="text-xs font-medium text-slate-500">× AOV</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="mt-4 rounded-lg bg-slate-50 p-4">
         <p className="text-sm font-medium text-slate-600">Contribution margin (real-time)</p>
         <p className="mt-1 text-2xl font-bold text-slate-900">
