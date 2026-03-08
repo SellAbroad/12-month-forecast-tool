@@ -7,6 +7,7 @@ export interface LeadCaptureData {
   company: string
   brand_name?: string
   forecast_summary?: string
+  forecast_pdf_s3_url?: string
 }
 
 export interface LeadCaptureResponse {

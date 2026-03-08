@@ -52,6 +52,8 @@ function loadImageAsDataUrl(url: string): Promise<string> {
   })
 }
 
+const PRESIGN_URL = 'https://sellabroad-growth-dashboard-production.up.railway.app/api/s3/presign'
+
 export function DownloadPDF({
   inputs,
   forecast,
@@ -65,7 +67,8 @@ export function DownloadPDF({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const handleDownload = async () => {
+  // Builds and returns the jsPDF doc — shared by download and S3 upload paths
+  const buildPdfDoc = async (): Promise<jsPDF> => {
     const doc = new jsPDF('p', 'mm', 'a4')
     const margin = 14
     const pageW = doc.internal.pageSize.getWidth()
@@ -276,6 +279,11 @@ export function DownloadPDF({
     doc.setFontSize(10)
     doc.text('Schedule a call with our team to see how SellAbroad can help you scale globally.', margin, y)
 
+    return doc
+  }
+
+  const handleDownload = async () => {
+    const doc = await buildPdfDoc()
     const safeName = sanitizeFilename(brandName)
     doc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
   }
@@ -296,10 +304,37 @@ export function DownloadPDF({
       const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
       const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
 
+      // Upload PDF to S3 (non-blocking — failure never blocks lead capture or local download)
+      let forecastPdfS3Url: string | undefined
+      try {
+        const safeName = sanitizeFilename(formData.company || brandName || 'Brand')
+        const presignRes = await fetch(PRESIGN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: `SellAbroad Forecast ${safeName}.pdf` }),
+        })
+        if (presignRes.ok) {
+          const { uploadUrl, publicUrl } = await presignRes.json()
+          const doc = await buildPdfDoc()
+          const pdfBlob = doc.output('blob')
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: pdfBlob,
+            headers: { 'Content-Type': 'application/pdf' },
+          })
+          if (uploadRes.ok) {
+            forecastPdfS3Url = publicUrl
+          }
+        }
+      } catch {
+        // S3 upload failed — continue silently, local download still works
+      }
+
       await submitForecastLead({
         ...formData,
         brand_name: brandName || undefined,
         forecast_summary: forecastSummary,
+        forecast_pdf_s3_url: forecastPdfS3Url,
       })
       sessionStorage.setItem('forecast_lead_captured', 'true')
       setShowModal(false)
