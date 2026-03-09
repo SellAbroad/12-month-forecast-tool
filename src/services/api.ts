@@ -13,6 +13,7 @@ export interface LeadCaptureData {
 export interface LeadCaptureResponse {
   success: boolean
   id: string
+  forecast_pdf_s3_url?: string
 }
 
 export async function submitForecastLead(data: LeadCaptureData): Promise<LeadCaptureResponse> {
@@ -47,6 +48,29 @@ export async function patchForecastLeadPdfUrl(id: string, forecast_pdf_s3_url: s
     const errorBody = await response.json().catch(() => ({}))
     throw new Error(
       errorBody?.message || `Failed to patch lead PDF URL (${response.status})`
+    )
+  }
+
+  return response.json()
+}
+
+export async function uploadForecastLeadPdf(
+  id: string,
+  pdfBlob: Blob,
+  filename: string
+): Promise<LeadCaptureResponse> {
+  const formData = new FormData()
+  formData.append('file', pdfBlob, filename)
+
+  const response = await fetch(`${API_BASE_URL}/forecast-leads/${id}/pdf`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(
+      errorBody?.message || `Failed to upload lead PDF (${response.status})`
     )
   }
 
