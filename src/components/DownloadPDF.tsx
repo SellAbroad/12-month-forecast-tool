@@ -6,7 +6,7 @@ import type { BusinessInputs } from '../types'
 import type { MonthForecast } from '../types'
 import { getMerchandisingEvents, getCountryDisplayName } from '../data/merchandisingEvents'
 import { LeadCaptureModal } from './LeadCaptureModal'
-import { submitForecastLead } from '../services/api'
+import { patchForecastLeadPdfUrl, submitForecastLead } from '../services/api'
 
 interface DownloadPDFProps {
   inputs: BusinessInputs
@@ -52,6 +52,10 @@ function loadImageAsDataUrl(url: string): Promise<string> {
   })
 }
 
+const PRESIGN_URL =
+  import.meta.env.VITE_PRESIGN_URL ||
+  'https://sellabroad-growth-dashboard-production.up.railway.app/api/s3/presign'
+
 export function DownloadPDF({
   inputs,
   forecast,
@@ -65,7 +69,8 @@ export function DownloadPDF({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const handleDownload = async () => {
+  // Builds and returns the jsPDF doc — shared by download and S3 upload paths
+  const buildPdfDoc = useCallback(async (): Promise<jsPDF> => {
     const doc = new jsPDF('p', 'mm', 'a4')
     const margin = 14
     const pageW = doc.internal.pageSize.getWidth()
@@ -276,9 +281,14 @@ export function DownloadPDF({
     doc.setFontSize(10)
     doc.text('Schedule a call with our team to see how SellAbroad can help you scale globally.', margin, y)
 
+    return doc
+  }, [brandName, chartRef, forecastStartDate, inputs, selectedEventIds, forecast])
+
+  const handleDownload = useCallback(async (doc?: jsPDF) => {
+    const pdfDoc = doc ?? await buildPdfDoc()
     const safeName = sanitizeFilename(brandName)
-    doc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
-  }
+    pdfDoc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
+  }, [brandName, buildPdfDoc])
 
   const handleButtonClick = () => {
     if (isEmbedded || sessionStorage.getItem('forecast_lead_captured')) {
@@ -295,21 +305,51 @@ export function DownloadPDF({
       const totalRevenue = forecast.reduce((s, f) => s + f.revenue, 0)
       const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
       const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
-
-      await submitForecastLead({
+      const leadPayload = {
         ...formData,
         brand_name: brandName || undefined,
         forecast_summary: forecastSummary,
-      })
+      }
+
+      // Submit lead first so lead capture never depends on PDF generation.
+      const leadResponse = await submitForecastLead(leadPayload)
       sessionStorage.setItem('forecast_lead_captured', 'true')
       setShowModal(false)
-      handleDownload()
+
+      const doc = await buildPdfDoc()
+      const pdfBlob = doc.output('blob')
+      await handleDownload(doc)
+
+      // Non-blocking background upload and dedup patch.
+      void (async () => {
+        try {
+          const safeName = sanitizeFilename(brandName || formData.company || 'Brand')
+          const presignRes = await fetch(PRESIGN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: `SellAbroad 12 Month Forecast For ${safeName}.pdf` }),
+          })
+          if (!presignRes.ok) return
+
+          const { uploadUrl, publicUrl } = await presignRes.json()
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: pdfBlob,
+            headers: { 'Content-Type': 'application/pdf' },
+          })
+          if (!uploadRes.ok || !publicUrl) return
+
+          await patchForecastLeadPdfUrl(leadResponse.id, publicUrl)
+        } catch {
+          // S3 upload/patch failed — lead is already captured and local PDF already downloaded.
+        }
+      })()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
-  }, [brandName, forecast, inputs.aov])
+  }, [brandName, forecast, inputs.aov, buildPdfDoc, handleDownload])
 
   return (
     <>

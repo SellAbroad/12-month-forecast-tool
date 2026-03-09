@@ -7,6 +7,7 @@ export interface LeadCaptureData {
   company: string
   brand_name?: string
   forecast_summary?: string
+  forecast_pdf_s3_url?: string
 }
 
 export interface LeadCaptureResponse {
@@ -27,6 +28,25 @@ export async function submitForecastLead(data: LeadCaptureData): Promise<LeadCap
     const errorBody = await response.json().catch(() => ({}))
     throw new Error(
       errorBody?.message || `Failed to submit lead (${response.status})`
+    )
+  }
+
+  return response.json()
+}
+
+export async function patchForecastLeadPdfUrl(id: string, forecast_pdf_s3_url: string): Promise<LeadCaptureResponse> {
+  const response = await fetch(`${API_BASE_URL}/forecast-leads/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ forecast_pdf_s3_url }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(
+      errorBody?.message || `Failed to patch lead PDF URL (${response.status})`
     )
   }
 
