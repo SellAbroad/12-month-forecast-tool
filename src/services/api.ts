@@ -35,12 +35,12 @@ export async function submitForecastLead(data: LeadCaptureData): Promise<LeadCap
 }
 
 export async function patchForecastLeadPdfUrl(id: string, forecast_pdf_s3_url: string): Promise<LeadCaptureResponse> {
-  const response = await fetch(`${API_BASE_URL}/forecast-leads`, {
+  const response = await fetch(`${API_BASE_URL}/forecast-leads/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ id, forecast_pdf_s3_url }),
+    body: JSON.stringify({ forecast_pdf_s3_url }),
   })
 
   if (!response.ok) {

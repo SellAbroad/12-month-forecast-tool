@@ -70,7 +70,7 @@ export function DownloadPDF({
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Builds and returns the jsPDF doc — shared by download and S3 upload paths
-  const buildPdfDoc = async (): Promise<jsPDF> => {
+  const buildPdfDoc = useCallback(async (): Promise<jsPDF> => {
     const doc = new jsPDF('p', 'mm', 'a4')
     const margin = 14
     const pageW = doc.internal.pageSize.getWidth()
@@ -282,13 +282,13 @@ export function DownloadPDF({
     doc.text('Schedule a call with our team to see how SellAbroad can help you scale globally.', margin, y)
 
     return doc
-  }
+  }, [brandName, chartRef, forecastStartDate, inputs, selectedEventIds, forecast])
 
-  const handleDownload = async (doc?: jsPDF) => {
+  const handleDownload = useCallback(async (doc?: jsPDF) => {
     const pdfDoc = doc ?? await buildPdfDoc()
     const safeName = sanitizeFilename(brandName)
     pdfDoc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
-  }
+  }, [brandName, buildPdfDoc])
 
   const handleButtonClick = () => {
     if (isEmbedded || sessionStorage.getItem('forecast_lead_captured')) {
@@ -349,7 +349,7 @@ export function DownloadPDF({
     } finally {
       setIsSubmitting(false)
     }
-  }, [brandName, forecast, inputs.aov])
+  }, [brandName, forecast, inputs.aov, buildPdfDoc, handleDownload])
 
   return (
     <>
