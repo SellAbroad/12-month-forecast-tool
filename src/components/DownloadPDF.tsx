@@ -6,7 +6,7 @@ import type { BusinessInputs } from '../types'
 import type { MonthForecast } from '../types'
 import { getMerchandisingEvents, getCountryDisplayName } from '../data/merchandisingEvents'
 import { LeadCaptureModal } from './LeadCaptureModal'
-import { submitForecastLead } from '../services/api'
+import { patchForecastLeadPdfUrl, submitForecastLead } from '../services/api'
 
 interface DownloadPDFProps {
   inputs: BusinessInputs
@@ -312,7 +312,7 @@ export function DownloadPDF({
       }
 
       // Submit lead first so lead capture never depends on PDF generation.
-      await submitForecastLead(leadPayload)
+      const leadResponse = await submitForecastLead(leadPayload)
       sessionStorage.setItem('forecast_lead_captured', 'true')
       setShowModal(false)
 
@@ -339,11 +339,7 @@ export function DownloadPDF({
           })
           if (!uploadRes.ok || !publicUrl) return
 
-          // Backend PR #985 dedupes by email and patches forecast_pdf_s3_url on recent lead rows.
-          await submitForecastLead({
-            ...leadPayload,
-            forecast_pdf_s3_url: publicUrl,
-          })
+          await patchForecastLeadPdfUrl(leadResponse.id, publicUrl)
         } catch {
           // S3 upload/patch failed — lead is already captured and local PDF already downloaded.
         }
