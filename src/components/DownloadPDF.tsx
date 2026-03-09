@@ -6,7 +6,7 @@ import type { BusinessInputs } from '../types'
 import type { MonthForecast } from '../types'
 import { getMerchandisingEvents, getCountryDisplayName } from '../data/merchandisingEvents'
 import { LeadCaptureModal } from './LeadCaptureModal'
-import { patchForecastLeadPdfUrl, submitForecastLead } from '../services/api'
+import { submitForecastLead, uploadForecastLeadPdf } from '../services/api'
 
 interface DownloadPDFProps {
   inputs: BusinessInputs
@@ -52,10 +52,6 @@ function loadImageAsDataUrl(url: string): Promise<string> {
   })
 }
 
-const PRESIGN_URL =
-  import.meta.env.VITE_PRESIGN_URL ||
-  'https://sellabroad-growth-dashboard-production.up.railway.app/api/s3/presign'
-
 export function DownloadPDF({
   inputs,
   forecast,
@@ -68,6 +64,7 @@ export function DownloadPDF({
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Builds and returns the jsPDF doc — shared by download and S3 upload paths
   const buildPdfDoc = useCallback(async (): Promise<jsPDF> => {
@@ -301,6 +298,7 @@ export function DownloadPDF({
   const handleLeadSubmit = useCallback(async (formData: { name: string; email: string; phone: string; company: string }) => {
     setIsSubmitting(true)
     setSubmitError(null)
+    setSyncStatus(null)
     try {
       const totalRevenue = forecast.reduce((s, f) => s + f.revenue, 0)
       const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
@@ -320,28 +318,22 @@ export function DownloadPDF({
       const pdfBlob = doc.output('blob')
       await handleDownload(doc)
 
-      // Non-blocking background upload and dedup patch.
+      // Non-blocking background sync via backend proxy (no browser->S3 CORS dependency).
       void (async () => {
         try {
           const safeName = sanitizeFilename(brandName || formData.company || 'Brand')
-          const presignRes = await fetch(PRESIGN_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: `SellAbroad 12 Month Forecast For ${safeName}.pdf` }),
+          const fileName = `SellAbroad 12 Month Forecast For ${safeName}.pdf`
+          await uploadForecastLeadPdf(leadResponse.id, pdfBlob, fileName)
+          setSyncStatus({
+            type: 'success',
+            message: 'Lead captured and PDF synced to your pipeline record.',
           })
-          if (!presignRes.ok) return
-
-          const { uploadUrl, publicUrl } = await presignRes.json()
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: pdfBlob,
-            headers: { 'Content-Type': 'application/pdf' },
-          })
-          if (!uploadRes.ok || !publicUrl) return
-
-          await patchForecastLeadPdfUrl(leadResponse.id, publicUrl)
         } catch {
           // S3 upload/patch failed — lead is already captured and local PDF already downloaded.
+          setSyncStatus({
+            type: 'error',
+            message: 'Lead captured, but PDF sync failed on backend. Check API/S3 health.',
+          })
         }
       })()
     } catch (err) {
@@ -365,6 +357,15 @@ export function DownloadPDF({
         >
           Download PDF
         </button>
+        {syncStatus && (
+          <p
+            className={`mt-3 text-sm ${
+              syncStatus.type === 'success' ? 'text-emerald-700' : 'text-amber-700'
+            }`}
+          >
+            {syncStatus.message}
+          </p>
+        )}
       </section>
 
       <LeadCaptureModal
