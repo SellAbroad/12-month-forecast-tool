@@ -307,40 +307,45 @@ export function DownloadPDF({
       const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
       const doc = await buildPdfDoc()
       const pdfBlob = doc.output('blob')
+      const leadPayload = {
+        ...formData,
+        brand_name: brandName || undefined,
+        forecast_summary: forecastSummary,
+      }
 
-      // Upload PDF to S3 (non-blocking — failure never blocks lead capture or local download)
-      let forecastPdfS3Url: string | undefined
-      try {
-        const safeName = sanitizeFilename(formData.company || brandName || 'Brand')
-        const presignRes = await fetch(PRESIGN_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: `SellAbroad Forecast ${safeName}.pdf` }),
-        })
-        if (presignRes.ok) {
+      // Submit lead first, then upload/patch in background so the modal closes fast.
+      await submitForecastLead(leadPayload)
+      sessionStorage.setItem('forecast_lead_captured', 'true')
+      setShowModal(false)
+      await handleDownload(doc)
+
+      // Non-blocking background upload and dedup patch.
+      void (async () => {
+        try {
+          const safeName = sanitizeFilename(formData.company || brandName || 'Brand')
+          const presignRes = await fetch(PRESIGN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: `SellAbroad Forecast ${safeName}.pdf` }),
+          })
+          if (!presignRes.ok) return
+
           const { uploadUrl, publicUrl } = await presignRes.json()
           const uploadRes = await fetch(uploadUrl, {
             method: 'PUT',
             body: pdfBlob,
             headers: { 'Content-Type': 'application/pdf' },
           })
-          if (uploadRes.ok) {
-            forecastPdfS3Url = publicUrl
-          }
-        }
-      } catch {
-        // S3 upload failed — continue silently, local download still works
-      }
+          if (!uploadRes.ok || !publicUrl) return
 
-      await submitForecastLead({
-        ...formData,
-        brand_name: brandName || undefined,
-        forecast_summary: forecastSummary,
-        forecast_pdf_s3_url: forecastPdfS3Url,
-      })
-      sessionStorage.setItem('forecast_lead_captured', 'true')
-      setShowModal(false)
-      await handleDownload(doc)
+          await submitForecastLead({
+            ...leadPayload,
+            forecast_pdf_s3_url: publicUrl,
+          })
+        } catch {
+          // S3 upload/patch failed — lead is already captured and local PDF already downloaded.
+        }
+      })()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
