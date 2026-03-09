@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, addMonths, startOfMonth } from 'date-fns'
@@ -52,7 +52,9 @@ function loadImageAsDataUrl(url: string): Promise<string> {
   })
 }
 
-const PRESIGN_URL = 'https://sellabroad-growth-dashboard-production.up.railway.app/api/s3/presign'
+const PRESIGN_URL =
+  import.meta.env.VITE_PRESIGN_URL ||
+  'https://sellabroad-growth-dashboard-production.up.railway.app/api/s3/presign'
 
 export function DownloadPDF({
   inputs,
@@ -282,10 +284,10 @@ export function DownloadPDF({
     return doc
   }
 
-  const handleDownload = async () => {
-    const doc = await buildPdfDoc()
+  const handleDownload = async (doc?: jsPDF) => {
+    const pdfDoc = doc ?? await buildPdfDoc()
     const safeName = sanitizeFilename(brandName)
-    doc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
+    pdfDoc.save(`SellAbroad 12 Month Forecast For ${safeName}.pdf`)
   }
 
   const handleButtonClick = () => {
@@ -296,13 +298,15 @@ export function DownloadPDF({
     setShowModal(true)
   }
 
-  const handleLeadSubmit = useCallback(async (formData: { name: string; email: string; phone: string; company: string }) => {
+  const handleLeadSubmit = async (formData: { name: string; email: string; phone: string; company: string }) => {
     setIsSubmitting(true)
     setSubmitError(null)
     try {
       const totalRevenue = forecast.reduce((s, f) => s + f.revenue, 0)
       const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
       const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
+      const doc = await buildPdfDoc()
+      const pdfBlob = doc.output('blob')
 
       // Upload PDF to S3 (non-blocking — failure never blocks lead capture or local download)
       let forecastPdfS3Url: string | undefined
@@ -315,8 +319,6 @@ export function DownloadPDF({
         })
         if (presignRes.ok) {
           const { uploadUrl, publicUrl } = await presignRes.json()
-          const doc = await buildPdfDoc()
-          const pdfBlob = doc.output('blob')
           const uploadRes = await fetch(uploadUrl, {
             method: 'PUT',
             body: pdfBlob,
@@ -338,13 +340,13 @@ export function DownloadPDF({
       })
       sessionStorage.setItem('forecast_lead_captured', 'true')
       setShowModal(false)
-      handleDownload()
+      await handleDownload(doc)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
-  }, [brandName, forecast, inputs.aov])
+  }
 
   return (
     <>
