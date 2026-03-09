@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, addMonths, startOfMonth } from 'date-fns'
@@ -298,35 +298,36 @@ export function DownloadPDF({
     setShowModal(true)
   }
 
-  const handleLeadSubmit = async (formData: { name: string; email: string; phone: string; company: string }) => {
+  const handleLeadSubmit = useCallback(async (formData: { name: string; email: string; phone: string; company: string }) => {
     setIsSubmitting(true)
     setSubmitError(null)
     try {
       const totalRevenue = forecast.reduce((s, f) => s + f.revenue, 0)
       const totalProfit = forecast.reduce((s, f) => s + f.profit, 0)
       const forecastSummary = `12-mo revenue: $${totalRevenue.toLocaleString()}, profit: $${totalProfit.toLocaleString()}, AOV: $${inputs.aov}`
-      const doc = await buildPdfDoc()
-      const pdfBlob = doc.output('blob')
       const leadPayload = {
         ...formData,
         brand_name: brandName || undefined,
         forecast_summary: forecastSummary,
       }
 
-      // Submit lead first, then upload/patch in background so the modal closes fast.
+      // Submit lead first so lead capture never depends on PDF generation.
       await submitForecastLead(leadPayload)
       sessionStorage.setItem('forecast_lead_captured', 'true')
       setShowModal(false)
+
+      const doc = await buildPdfDoc()
+      const pdfBlob = doc.output('blob')
       await handleDownload(doc)
 
       // Non-blocking background upload and dedup patch.
       void (async () => {
         try {
-          const safeName = sanitizeFilename(formData.company || brandName || 'Brand')
+          const safeName = sanitizeFilename(brandName || formData.company || 'Brand')
           const presignRes = await fetch(PRESIGN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: `SellAbroad Forecast ${safeName}.pdf` }),
+            body: JSON.stringify({ filename: `SellAbroad 12 Month Forecast For ${safeName}.pdf` }),
           })
           if (!presignRes.ok) return
 
@@ -338,6 +339,7 @@ export function DownloadPDF({
           })
           if (!uploadRes.ok || !publicUrl) return
 
+          // Backend PR #985 dedupes by email and patches forecast_pdf_s3_url on recent lead rows.
           await submitForecastLead({
             ...leadPayload,
             forecast_pdf_s3_url: publicUrl,
@@ -351,7 +353,7 @@ export function DownloadPDF({
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [brandName, forecast, inputs.aov])
 
   return (
     <>
