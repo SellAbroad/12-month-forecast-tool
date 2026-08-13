@@ -1,0 +1,28 @@
+name: carrier-scan
+# Required gate: detects the EtherHiding supply-chain carriers (fake-font/.vscode autorun
+# and config/source whitespace payload) on every push and PR, plus a daily sweep.
+# Make the `carrier-scan` job a REQUIRED status check in the repo ruleset so a HIGH finding
+# blocks the merge. Scans the resulting/merge tree, which is what catches an evil merge.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carrier-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  carrier-scan:
+    name: carrier-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for EtherHiding carriers
+        run: bash .github/scripts/detect-carrier.sh
